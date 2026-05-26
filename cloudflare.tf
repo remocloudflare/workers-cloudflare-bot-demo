@@ -1,9 +1,9 @@
 # =========================================================================
 # Cloudflare Workers + Workers AI (provider v5)
 #
-# - DemoBot Worker on bot-cloudflare.itlinux.cc (Workers AI guardrail:
-#   Linux, Italy, soccer).
-# - Landing Worker on remo.itlinux.cc (static HTML, Remo's mini-bio).
+# - DemoBot Worker on var.bot_hostname     (Workers AI, topic-bounded:
+#   Linux, Italy, soccer, basketball).
+# - Landing Worker on var.landing_hostname (static HTML).
 #
 # No VM, no Tunnel, no Access. Pure Workers.
 # =========================================================================
@@ -48,7 +48,7 @@ resource "cloudflare_workers_script" "bot" {
   depends_on = [cloudflare_ai_gateway.demobot]
 }
 
-# Custom domain -> binds the bot Worker to bot-cloudflare.itlinux.cc
+# Custom domain -> binds the bot Worker to var.bot_hostname
 resource "cloudflare_workers_custom_domain" "bot" {
   account_id = var.cf_account_id
   hostname   = var.bot_hostname
@@ -56,7 +56,7 @@ resource "cloudflare_workers_custom_domain" "bot" {
   zone_id    = var.cf_zone_id
 }
 
-# ---------- Landing Worker (remo.itlinux.cc) ----------
+# ---------- Landing Worker (var.landing_hostname) ----------
 resource "cloudflare_workers_script" "landing" {
   account_id  = var.cf_account_id
   script_name = var.landing_script_name
