@@ -1,0 +1,14 @@
+name = "workers-cf-bot-demo"
+main = "src/index.js"
+compatibility_date = "2025-05-01"
+
+# Workers AI binding
+[ai]
+binding = "AI"
+
+# Default model (overridden by Terraform plain_text binding at deploy time)
+[vars]
+MODEL = "@cf/meta/llama-3.1-8b-instruct"
+
+# Note: terraform manages the production deploy + custom domain.
+# This wrangler.toml is for local `wrangler dev` only.

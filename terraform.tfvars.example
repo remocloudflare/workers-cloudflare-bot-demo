@@ -1,0 +1,28 @@
+# =========================================================================
+# Copy this file to `terraform.tfvars` and fill in your own values.
+#
+#   cp terraform.tfvars.example terraform.tfvars
+#
+# `terraform.tfvars` is gitignored — never commit real IDs.
+# =========================================================================
+
+# Cloudflare account that owns the Workers and custom domains.
+# Find at: https://dash.cloudflare.com -> right sidebar -> "Account ID"
+cf_account_id = "<YOUR_CLOUDFLARE_ACCOUNT_ID>"
+
+# Zone (domain) you control on Cloudflare.
+# Find at: https://dash.cloudflare.com/<account>/<zone> -> Overview -> "Zone ID"
+cf_zone_id   = "<YOUR_CLOUDFLARE_ZONE_ID>"
+cf_zone_name = "example.com"
+
+# Hostnames for the two Workers. Both must be subdomains of cf_zone_name
+# (or the apex itself).
+bot_hostname     = "bot.example.com"
+landing_hostname = "www.example.com"
+
+# Optional overrides — defaults are fine for most users.
+# bot_script_name        = "workers-cf-bot-demo"
+# landing_script_name    = "workers-cf-landing-demo"
+# workers_ai_model       = "@cf/meta/llama-3.1-8b-instruct"
+# workers_ai_image_model = "@cf/bytedance/stable-diffusion-xl-lightning"
+# ai_gateway_id          = "demobot-gw"

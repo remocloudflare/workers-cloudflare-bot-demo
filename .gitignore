@@ -1,0 +1,18 @@
+# Terraform
+**/.terraform/
+**/.terraform.d/
+terraform.tfstate*
+terraform.tfvars
+
+# Worker build artifacts
+worker/dist/
+worker/node_modules/
+worker/.wrangler/
+worker-landing/dist/
+worker-landing/node_modules/
+worker-landing/.wrangler/
+
+# OS / editor noise
+.DS_Store
+*.swp
+*.swo

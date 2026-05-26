@@ -1,0 +1,6 @@
+name = "workers-cf-landing-demo"
+main = "src/index.js"
+compatibility_date = "2025-05-01"
+
+# Terraform owns the production deploy + custom domain bindings.
+# This file exists for `wrangler dev` only.
