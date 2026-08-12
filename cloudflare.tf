@@ -57,7 +57,10 @@ resource "cloudflare_workers_custom_domain" "bot" {
 }
 
 # ---------- Landing Worker (var.landing_hostname) ----------
+# Skipped entirely when var.landing_enabled = false (default: true).
 resource "cloudflare_workers_script" "landing" {
+  count = var.landing_enabled ? 1 : 0
+
   account_id  = var.cf_account_id
   script_name = var.landing_script_name
   content     = file("${path.module}/worker-landing/dist/index.js")
@@ -71,8 +74,10 @@ resource "cloudflare_workers_script" "landing" {
 }
 
 resource "cloudflare_workers_custom_domain" "landing" {
+  count = var.landing_enabled ? 1 : 0
+
   account_id = var.cf_account_id
   hostname   = var.landing_hostname
-  service    = cloudflare_workers_script.landing.script_name
+  service    = cloudflare_workers_script.landing[0].script_name
   zone_id    = var.cf_zone_id
 }

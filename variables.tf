@@ -51,13 +51,20 @@ variable "bot_hostname" {
 }
 
 variable "landing_hostname" {
-  description = "FQDN for the landing page Worker. Must be cf_zone_name or a subdomain of it."
+  description = "FQDN for the landing page Worker. Must be cf_zone_name or a subdomain of it. Ignored when landing_enabled = false."
   type        = string
+  default     = ""
 
   validation {
-    condition     = can(regex("^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+$", var.landing_hostname))
+    condition     = var.landing_hostname == "" || can(regex("^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+$", var.landing_hostname))
     error_message = "landing_hostname must be a valid lowercase DNS name (e.g. 'www.example.com')."
   }
+}
+
+variable "landing_enabled" {
+  description = "Whether to deploy the landing-page Worker + its custom domain. Set to false if you only want the bot Worker (e.g. the landing page is managed by a different module)."
+  type        = bool
+  default     = true
 }
 
 # =========================================================================
@@ -97,6 +104,26 @@ variable "ai_gateway_id" {
 }
 
 # =========================================================================
+# DLP (Data Loss Prevention) on the AI Gateway
+#
+# When enabled, a predefined DLP profile is attached to the gateway so any
+# request through it (Worker, OpenCode, curl, any client) is inspected for
+# sensitive data and BLOCKED (HTTP 424, code 2030) before reaching the model.
+# =========================================================================
+
+variable "dlp_enabled" {
+  description = "Attach a DLP profile to the AI Gateway to block sensitive data (SSN/PII) in prompts. Default true for the security demo."
+  type        = bool
+  default     = true
+}
+
+variable "dlp_profile_id" {
+  description = "DLP profile id to enforce. Empty string = use the Cloudflare-predefined 'Social Security, Insurance, Tax, and Identifier Numbers' profile (d658f520-...). Override to attach a custom or different predefined profile."
+  type        = string
+  default     = ""
+}
+
+# =========================================================================
 # Cross-variable sanity check: hostnames must live on the configured zone.
 # Uses a `check` block (Terraform 1.5+) so the error fires at plan time
 # with a readable message instead of after the API call fails.
@@ -106,8 +133,19 @@ check "hostnames_under_zone" {
   assert {
     condition = (
       (var.bot_hostname == var.cf_zone_name || endswith(var.bot_hostname, ".${var.cf_zone_name}")) &&
-      (var.landing_hostname == var.cf_zone_name || endswith(var.landing_hostname, ".${var.cf_zone_name}"))
+      (
+        !var.landing_enabled ||
+        var.landing_hostname == var.cf_zone_name ||
+        endswith(var.landing_hostname, ".${var.cf_zone_name}")
+      )
     )
     error_message = "bot_hostname (${var.bot_hostname}) and landing_hostname (${var.landing_hostname}) must both be ${var.cf_zone_name} or subdomains of it."
+  }
+}
+
+check "landing_hostname_when_enabled" {
+  assert {
+    condition     = !var.landing_enabled || var.landing_hostname != ""
+    error_message = "landing_hostname must be set when landing_enabled = true."
   }
 }

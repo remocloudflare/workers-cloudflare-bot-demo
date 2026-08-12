@@ -218,3 +218,110 @@ output "guardrails_summary" {
     flag  = sort([for cat, act in local.guardrails_policy.prompt : cat if act == "FLAG"])
   }
 }
+
+# -----------------------------------------------------------------------------
+# DLP profile attachment — blocks SSN/PII in AI prompts at the Gateway edge
+#
+# Attaches a predefined DLP profile (d658f520-... = Social Security, Insurance,
+# Tax, and Identifier Numbers) to the AI Gateway so ANY request passing through
+# the gateway (from the Worker, OpenCode, curl, any HTTP client) is inspected
+# for sensitive data before reaching the model.
+#
+# Profile must already exist on the account (it's a Cloudflare-predefined
+# profile, always available). To attach additional profiles (PCI, PII, etc.),
+# add their IDs to the profiles list below.
+# -----------------------------------------------------------------------------
+
+locals {
+  dlp_profile_id = var.dlp_profile_id != "" ? var.dlp_profile_id : "d658f520-6ecb-4a34-a725-ba37243c2d28"
+}
+
+# Apply DLP config via REST PUT — the cloudflare v5 provider doesn't expose
+# the dlp attribute on the ai_gateway resource.
+resource "null_resource" "dlp_attach" {
+  triggers = {
+    gateway_id  = cloudflare_ai_gateway.demobot.id
+    dlp_enabled = var.dlp_enabled ? "true" : "false"
+    dlp_profile = local.dlp_profile_id
+  }
+
+  lifecycle {
+    replace_triggered_by = [
+      cloudflare_ai_gateway.demobot.id,
+    ]
+  }
+
+  count = var.dlp_enabled ? 1 : 0
+
+  provisioner "local-exec" {
+    interpreter = ["/bin/bash", "-c"]
+    environment = {
+      CF_ACCOUNT_ID = var.cf_account_id
+      CF_GATEWAY_ID = cloudflare_ai_gateway.demobot.id
+      DLP_PROFILE   = local.dlp_profile_id
+    }
+    command = <<-EOT
+      set -euo pipefail
+      if [ -z "$${CLOUDFLARE_API_TOKEN:-}" ]; then
+        echo "ERROR: CLOUDFLARE_API_TOKEN env var must be set"
+        exit 1
+      fi
+      python3 <<'PY'
+      import json, os, sys, urllib.request
+
+      token   = os.environ["CLOUDFLARE_API_TOKEN"]
+      acct    = os.environ["CF_ACCOUNT_ID"]
+      gw_id   = os.environ["CF_GATEWAY_ID"]
+      dlp_prof = os.environ["DLP_PROFILE"]
+      url     = f"https://api.cloudflare.com/client/v4/accounts/{acct}/ai-gateway/gateways/{gw_id}"
+
+      # GET current gateway record
+      req = urllib.request.Request(url, headers={"Authorization": "Bearer " + token})
+      with urllib.request.urlopen(req) as r:
+          got = json.loads(r.read())
+      body = got["result"]
+
+      # Drop server-managed / read-only fields
+      for k in ("id", "created_at", "modified_at", "is_default", "internal", "wholesale"):
+          body.pop(k, None)
+
+      # Merge DLP config
+      body["dlp"] = {
+          "enabled": True,
+          "policies": [{
+              "id": "Policy 1",
+              "enabled": True,
+              "action": "BLOCK",
+              "profiles": [dlp_prof],
+              "check": ["REQUEST"],
+          }]
+      }
+
+      # PUT
+      req = urllib.request.Request(
+          url, method="PUT",
+          headers={
+              "Authorization": "Bearer " + token,
+              "Content-Type": "application/json",
+          },
+          data=json.dumps(body).encode("utf-8"),
+      )
+      try:
+          with urllib.request.urlopen(req) as r:
+              resp = json.loads(r.read())
+      except urllib.error.HTTPError as e:
+          err = json.loads(e.read())
+          print("DLP PUT FAILED:", json.dumps(err, indent=2), file=sys.stderr)
+          sys.exit(1)
+
+      if not resp.get("success"):
+          print("DLP PUT returned non-success:", json.dumps(resp, indent=2), file=sys.stderr)
+          sys.exit(1)
+
+      print(f"DLP attached: profile={dlp_prof}, action=BLOCK, check=REQUEST")
+      PY
+    EOT
+  }
+
+  depends_on = [cloudflare_ai_gateway.demobot, null_resource.guardrails_apply]
+}

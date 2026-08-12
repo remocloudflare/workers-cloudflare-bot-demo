@@ -26,3 +26,8 @@ landing_hostname = "www.example.com"
 # workers_ai_model       = "@cf/meta/llama-3.1-8b-instruct"
 # workers_ai_image_model = "@cf/bytedance/stable-diffusion-xl-lightning"
 # ai_gateway_id          = "demobot-gw"
+
+# DLP — block SSN/PII in AI prompts at the Gateway edge (HTTP 424, code 2030).
+# dlp_enabled    = true    # default true; set false to disable the block
+# dlp_profile_id = ""      # empty = Cloudflare predefined SSN/Tax/ID profile
+#                          # (d658f520-6ecb-4a34-a725-ba37243c2d28)
